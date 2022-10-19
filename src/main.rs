@@ -134,7 +134,6 @@ impl Program {
                 }
             }).map_err(Error::GenericIoError)?;
 
-            // TODO: enter key to choose file
             if let Event::Key(key) = event::read().map_err(Error::GenericIoError)? {
                 match key.code {
                     // toggle hidden
@@ -157,13 +156,13 @@ impl Program {
                     // scroll down 
                     // scroll is limited at the bottom of the screen 
                     KeyCode::Char('j') => {
-                        // -1 so the last line is visible when scrolled all the way
+                        // -1 so that the last line is visible when scrolled all the way
                         if self.scroll != self.length - 1 {
                             self.scroll += 1;
                         }
                     },
                     KeyCode::Down => {
-                        // -1 so the last line is visible when scrolled all the way
+                        // -1 so that the last line is visible when scrolled all the way
                         if self.scroll != self.length - 1 {
                             self.scroll += 1;
                         }
@@ -202,13 +201,6 @@ macro_rules! restore_panic {
     }}
 }
 
-// TODO: as of right now it is assumed 
-//       that the input file is in the specified format
-//       it makes sense to error if the file format is wrong
-//       but idk the good way of doing it
-//       like dictionary maybe?
-//
-// TODO: multiple files
 fn main() -> Result<()> {
     let args: Vec<String> = std::env::args().collect();
 
@@ -216,11 +208,6 @@ fn main() -> Result<()> {
         println!("usage: kanjitest filename");
         std::process::exit(0);
     }
-
-    // if !Path::new(&args[1]).is_file() {
-    //     println!("the argument is not a file");
-    //     std::process::exit(0);
-    // }
 
     enable_raw_mode().map_err(Error::GenericIoError)?;
     let mut stdout = std::io::stdout();
