@@ -216,7 +216,8 @@ fn main() -> Result<()> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend).map_err(Error::GenericIoError)?;
 
-    let program = match Program::new(&args[1]) {
+    let path = &args[1];
+    let program = match Program::new(path) {
         Ok(p) => p,
         Err(e) => restore_panic!(terminal, e)
     };
