@@ -1,4 +1,4 @@
-use std::{fs::File, io::Read};
+use std::{fs::File, io::Read, path::Path};
 
 use tui::{
     widgets::Paragraph,
@@ -28,12 +28,14 @@ struct Program {
     // left side will have kanji on it
     left_side: String,
     // right side will have meaning and reading on it
-    // right side can be hidden with spacebar
+    // it can be hidden with spacebar
     right_side: String,
     // bool determines if right side is supposed to be hidden
     hidden: bool,
     // vertical sroll of the file
     scroll: u16,
+    // amout of lines in the file
+    length: u16,
 }
 
 impl Program {
@@ -51,6 +53,7 @@ impl Program {
             right_side: String::new(),
             hidden: false,
             scroll: 0u16,
+            length: 0u16,
         };
 
         result.update_file(file);
@@ -71,23 +74,26 @@ impl Program {
         // replace every uneeded line with an empty one for the left side
         let mut left_side = String::new();
         for line in content.lines() {
-            if line.contains(':') {
+            if line.contains(':') || line == "-" {
                 left_side.push_str(line);
             }
+
             left_side.push('\n');
         }
 
         // replace every uneeded line with an empty one for the right side
         let mut right_side = String::new();
         for line in content.lines() {
-            if !line.contains(':') {
+            if !line.contains(':') && line != "-" {
                 right_side.push_str(line);
             }
+
             right_side.push('\n');
         }
 
         self.left_side  = left_side;
         self.right_side = right_side;
+        self.length = content.lines().count() as u16;
     }
 
     fn run<B: Backend>(mut self, terminal: &mut Terminal<B>) -> std::io::Result<()> { 
@@ -97,22 +103,22 @@ impl Program {
                 let chunks = Layout::default()
                     .direction(Direction::Horizontal)
                     .constraints([
-                        Constraint::Percentage(40),
-                        Constraint::Percentage(60),
-                     ])
+                                 Constraint::Percentage(40),
+                                 Constraint::Percentage(60),
+                    ])
                     .split(f.size());
 
                 // render left side
                 let paragraph = 
                     Paragraph::new(self.left_side.clone())
-                        .scroll((self.scroll, 0));
+                    .scroll((self.scroll, 0));
                 f.render_widget(paragraph, chunks[0]);
 
-                // render right side
+                // render right side if it is not hidden
                 if !self.hidden {
                     let paragraph = 
                         Paragraph::new(self.right_side.clone())
-                            .scroll((self.scroll, 0));
+                        .scroll((self.scroll, 0));
                     f.render_widget(paragraph, chunks[1]);
                 }
             })?;
@@ -137,14 +143,17 @@ impl Program {
                         }
                     },
 
-                    // scroll down
+                    // scroll down 
+                    // scroll is limited at the bottom of the screen 
                     KeyCode::Char('j') => {
-                        if self.scroll != u16::MAX {
+                        // -1 so the last line is visible when scrolled all the way
+                        if self.scroll != self.length - 1 {
                             self.scroll += 1;
                         }
                     },
                     KeyCode::Down => {
-                        if self.scroll != u16::MAX {
+                        // -1 so the last line is visible when scrolled all the way
+                        if self.scroll != self.length - 1 {
                             self.scroll += 1;
                         }
                     },
@@ -164,11 +173,20 @@ impl Program {
 // TODO: as of right now it is assumed 
 //       that the input file is in the specified format
 //       it makes sense to error if the file format is wrong
+//       but idk the good way of doing it
+//       like dictionary maybe?
+//
+// TODO: multiple files
 fn main() -> std::io::Result<()> {
     let args: Vec<String> = std::env::args().collect();
 
     if args.len() != 2 {
         println!("usage: kanjitest filename");
+        std::process::exit(0);
+    }
+
+    if !Path::new(&args[1]).is_file() {
+        println!("the argument is not a file");
         std::process::exit(0);
     }
 
