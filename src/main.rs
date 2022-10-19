@@ -1,4 +1,7 @@
-use std::{fs::File, io::{Read, Stdout}, path::Path, panic::PanicInfo};
+use std::{
+    fs::File, 
+    io::Read
+};
 
 use tui::{
     widgets::Paragraph,
@@ -28,7 +31,7 @@ use crossterm::{
 enum Error {
     CantOpenFile(std::io::Error),
     CantReadFileContent(std::io::Error),
-    GenericIoError(std::io::Error)
+    GenericIo(std::io::Error)
 }
 
 type Result<T> = ::std::result::Result<T, Error>;
@@ -132,9 +135,9 @@ impl Program {
                         .scroll((self.scroll, 0));
                     f.render_widget(paragraph, chunks[1]);
                 }
-            }).map_err(Error::GenericIoError)?;
+            }).map_err(Error::GenericIo)?;
 
-            if let Event::Key(key) = event::read().map_err(Error::GenericIoError)? {
+            if let Event::Key(key) = event::read().map_err(Error::GenericIo)? {
                 match key.code {
                     // toggle hidden
                     KeyCode::Char(' ') => {
@@ -182,14 +185,14 @@ impl Program {
 
 macro_rules! restore_terminal {
     ($terminal: expr) => {{
-        disable_raw_mode().map_err(Error::GenericIoError)?;
+        disable_raw_mode().map_err(Error::GenericIo)?;
         execute!(
             $terminal.backend_mut(),
             LeaveAlternateScreen,
             DisableMouseCapture
-            ).map_err(Error::GenericIoError)?;
+            ).map_err(Error::GenericIo)?;
 
-        $terminal.show_cursor().map_err(Error::GenericIoError)?;
+        $terminal.show_cursor().map_err(Error::GenericIo)?;
         Ok(())
     }}
 }
@@ -209,12 +212,12 @@ fn main() -> Result<()> {
         std::process::exit(0);
     }
 
-    enable_raw_mode().map_err(Error::GenericIoError)?;
+    enable_raw_mode().map_err(Error::GenericIo)?;
     let mut stdout = std::io::stdout();
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture).map_err(Error::GenericIoError)?;
+    execute!(stdout, EnterAlternateScreen, EnableMouseCapture).map_err(Error::GenericIo)?;
 
     let backend = CrosstermBackend::new(stdout);
-    let mut terminal = Terminal::new(backend).map_err(Error::GenericIoError)?;
+    let mut terminal = Terminal::new(backend).map_err(Error::GenericIo)?;
 
     let path = &args[1];
     let program = match Program::new(path) {
