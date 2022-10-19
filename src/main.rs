@@ -1,4 +1,4 @@
-use std::{fs::File, io::Read, path::Path};
+use std::{fs::File, io::{Read, Stdout}, path::Path, panic::PanicInfo};
 
 use tui::{
     widgets::Paragraph,
@@ -24,6 +24,15 @@ use crossterm::{
 };
 
 
+#[derive(Debug)]
+enum Error {
+    CantOpenFile(std::io::Error),
+    CantReadFileContent(std::io::Error),
+    GenericIoError(std::io::Error)
+}
+
+type Result<T> = ::std::result::Result<T, Error>;
+
 struct Program { 
     // left side will have kanji on it
     left_side: String,
@@ -47,7 +56,7 @@ impl Program {
     //
     // all the uneeded lines for left side will be replaced with an empty line
     // same for the right side
-    fn new(file: &str) -> Self { 
+    fn new(file: &str) -> Result<Self> { 
         let mut result = Self {
             left_side: String::new(),
             right_side: String::new(),
@@ -56,20 +65,20 @@ impl Program {
             length: 0u16,
         };
 
-        result.update_file(file);
+        result.update_file(file)?;
 
-        result
+        Ok(result)
     }
 
-    fn update_file(&mut self, file: &str) { 
+    fn update_file(&mut self, file: &str) -> Result<()> { 
         let mut content = String::new();
         File::options()
             .read(true)
             .write(false)
             .open(file)
-            .expect("couldn't open the file")
+            .map_err(Error::CantOpenFile)?
             .read_to_string(&mut content)
-            .expect("couldn't read the file content");
+            .map_err(Error::CantReadFileContent)?;
 
         // replace every uneeded line with an empty one for the left side
         let mut left_side = String::new();
@@ -94,9 +103,11 @@ impl Program {
         self.left_side  = left_side;
         self.right_side = right_side;
         self.length = content.lines().count() as u16;
+
+        Ok(())
     }
 
-    fn run<B: Backend>(mut self, terminal: &mut Terminal<B>) -> std::io::Result<()> { 
+    fn run<B: Backend>(mut self, terminal: &mut Terminal<B>) -> Result<()> { 
         loop {
             terminal.draw(|f| {
                 // split screen into two parts
@@ -121,16 +132,17 @@ impl Program {
                         .scroll((self.scroll, 0));
                     f.render_widget(paragraph, chunks[1]);
                 }
-            })?;
-            
-            if let Event::Key(key) = event::read()? {
+            }).map_err(Error::GenericIoError)?;
+
+            // TODO: enter key to choose file
+            if let Event::Key(key) = event::read().map_err(Error::GenericIoError)? {
                 match key.code {
                     // toggle hidden
                     KeyCode::Char(' ') => {
                         self.hidden = !self.hidden
                     }
 
-                    // scrolll up
+                    // scrolll up (?)
                     KeyCode::Char('k') => {
                         if self.scroll != 0 {
                             self.scroll -= 1;
@@ -145,19 +157,19 @@ impl Program {
                     // scroll down 
                     // scroll is limited at the bottom of the screen 
                     KeyCode::Char('j') => {
-                        // -1 so that the last line is visible when scrolled all the way
+                        // -1 so the last line is visible when scrolled all the way
                         if self.scroll != self.length - 1 {
                             self.scroll += 1;
                         }
                     },
                     KeyCode::Down => {
-                        // -1 so that the last line is visible when scrolled all the way
+                        // -1 so the last line is visible when scrolled all the way
                         if self.scroll != self.length - 1 {
                             self.scroll += 1;
                         }
                     },
 
-                    // leave the program
+                    // leave the program here
                     KeyCode::Esc => {
                         return Ok(())
                     },
@@ -169,7 +181,35 @@ impl Program {
     }
 }
 
-fn main() -> std::io::Result<()> {
+macro_rules! restore_terminal {
+    ($terminal: expr) => {{
+        disable_raw_mode().map_err(Error::GenericIoError)?;
+        execute!(
+            $terminal.backend_mut(),
+            LeaveAlternateScreen,
+            DisableMouseCapture
+            ).map_err(Error::GenericIoError)?;
+
+        $terminal.show_cursor().map_err(Error::GenericIoError)?;
+        Ok(())
+    }}
+}
+
+macro_rules! restore_panic {
+    ($terminal: expr, $error: expr) => {{
+        restore_terminal!($terminal)?;
+        panic!("{:#?}", $error);
+    }}
+}
+
+// TODO: as of right now it is assumed 
+//       that the input file is in the specified format
+//       it makes sense to error if the file format is wrong
+//       but idk the good way of doing it
+//       like dictionary maybe?
+//
+// TODO: multiple files
+fn main() -> Result<()> {
     let args: Vec<String> = std::env::args().collect();
 
     if args.len() != 2 {
@@ -177,33 +217,28 @@ fn main() -> std::io::Result<()> {
         std::process::exit(0);
     }
 
-    if !Path::new(&args[1]).is_file() {
-        println!("the argument is not a file");
-        std::process::exit(0);
-    }
+    // if !Path::new(&args[1]).is_file() {
+    //     println!("the argument is not a file");
+    //     std::process::exit(0);
+    // }
 
-    enable_raw_mode()?;
+    enable_raw_mode().map_err(Error::GenericIoError)?;
     let mut stdout = std::io::stdout();
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+    execute!(stdout, EnterAlternateScreen, EnableMouseCapture).map_err(Error::GenericIoError)?;
 
     let backend = CrosstermBackend::new(stdout);
-    let mut terminal = Terminal::new(backend)?;
+    let mut terminal = Terminal::new(backend).map_err(Error::GenericIoError)?;
 
-    let program = Program::new(&args[1]);
-    let run_result = program.run(&mut terminal);
+    let program = match Program::new(&args[1]) {
+        Ok(p) => p,
+        Err(e) => restore_panic!(terminal, e)
+    };
 
-    disable_raw_mode()?;
-    execute!(
-        terminal.backend_mut(),
-        LeaveAlternateScreen,
-        DisableMouseCapture
-    )?;
-
-    terminal.show_cursor()?;
-
-
-    // doing it here so the terminal is restored before panic occurs
-    run_result?;
+    match program.run(&mut terminal) {
+        Ok(_) => restore_terminal!(terminal)?,
+        Err(e) => restore_panic!(terminal, e)
+    }
 
     Ok(())
 }
+
