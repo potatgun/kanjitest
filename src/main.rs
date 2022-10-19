@@ -122,8 +122,7 @@ impl Program {
                     f.render_widget(paragraph, chunks[1]);
                 }
             })?;
-
-            // TODO: enter key to choose file
+            
             if let Event::Key(key) = event::read()? {
                 match key.code {
                     // toggle hidden
@@ -131,7 +130,7 @@ impl Program {
                         self.hidden = !self.hidden
                     }
 
-                    // scrolll up (?)
+                    // scrolll up
                     KeyCode::Char('k') => {
                         if self.scroll != 0 {
                             self.scroll -= 1;
@@ -146,19 +145,19 @@ impl Program {
                     // scroll down 
                     // scroll is limited at the bottom of the screen 
                     KeyCode::Char('j') => {
-                        // -1 so the last line is visible when scrolled all the way
+                        // -1 so that the last line is visible when scrolled all the way
                         if self.scroll != self.length - 1 {
                             self.scroll += 1;
                         }
                     },
                     KeyCode::Down => {
-                        // -1 so the last line is visible when scrolled all the way
+                        // -1 so that the last line is visible when scrolled all the way
                         if self.scroll != self.length - 1 {
                             self.scroll += 1;
                         }
                     },
 
-                    // leave the program here
+                    // leave the program
                     KeyCode::Esc => {
                         return Ok(())
                     },
@@ -170,13 +169,6 @@ impl Program {
     }
 }
 
-// TODO: as of right now it is assumed 
-//       that the input file is in the specified format
-//       it makes sense to error if the file format is wrong
-//       but idk the good way of doing it
-//       like dictionary maybe?
-//
-// TODO: multiple files
 fn main() -> std::io::Result<()> {
     let args: Vec<String> = std::env::args().collect();
 
@@ -210,7 +202,7 @@ fn main() -> std::io::Result<()> {
     terminal.show_cursor()?;
 
 
-    // doing it here so the terminal is restored before panicing
+    // doing it here so the terminal is restored before panic occurs
     run_result?;
 
     Ok(())
