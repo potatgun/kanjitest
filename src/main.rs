@@ -16,7 +16,7 @@ use crossterm::{
         DisableMouseCapture, 
         EnableMouseCapture, 
         Event,
-        KeyCode
+        KeyCode, MouseEventKind
     },
     terminal::{
         disable_raw_mode, 
@@ -42,12 +42,14 @@ struct Program {
     // right side will have meaning and reading on it
     // it can be hidden with spacebar
     right_side: String,
-    // bool determines if right side is supposed to be hidden
+    // this bool determines if right side is supposed to be hidden
     hidden: bool,
     // vertical sroll of the file
     scroll: u16,
     // amout of lines in the file
     length: u16,
+    // this bool determines if program should be left
+    leave: bool,
 }
 
 impl Program {
@@ -66,6 +68,7 @@ impl Program {
             hidden: false,
             scroll: 0u16,
             length: 0u16,
+            leave:  false,
         };
 
         result.update_file(file)?;
@@ -110,8 +113,52 @@ impl Program {
         Ok(())
     }
 
+    fn scroll_up(&mut self) { 
+        if self.scroll != 0 {
+            self.scroll -= 1;
+        }
+    }
+
+    fn scroll_down(&mut self) { 
+        // -1 so that the last line is visible when scrolled all the way
+        if self.scroll != self.length - 1 {
+            self.scroll += 1;
+        }
+    }
+
+    fn key_input(&mut self, key: KeyCode) -> () { 
+        match key {
+            // toggle hidden
+            KeyCode::Char(' ') => {
+                self.hidden = !self.hidden
+            }
+
+            // scrolll up 
+            KeyCode::Char('k') => self.scroll_up(),
+            KeyCode::Up => self.scroll_up(),
+
+            // scroll down 
+            // scroll is limited at the bottom of the screen 
+            KeyCode::Char('j') => self.scroll_down(),
+            KeyCode::Down => self.scroll_down(),
+
+            // leave the program here
+            KeyCode::Esc => self.leave = true,
+
+            _ => ()
+        }
+    }
+
+    fn mouse_input(&mut self, event: MouseEventKind) { 
+        match event {
+            MouseEventKind::ScrollUp => self.scroll_up(),    
+            MouseEventKind::ScrollDown => self.scroll_down(),
+            _ => ()
+        }
+    }
+
     fn run<B: Backend>(mut self, terminal: &mut Terminal<B>) -> Result<()> { 
-        loop {
+        while !self.leave {
             terminal.draw(|f| {
                 // split screen into two parts
                 let chunks = Layout::default()
@@ -137,49 +184,14 @@ impl Program {
                 }
             }).map_err(Error::GenericIo)?;
 
-            if let Event::Key(key) = event::read().map_err(Error::GenericIo)? {
-                match key.code {
-                    // toggle hidden
-                    KeyCode::Char(' ') => {
-                        self.hidden = !self.hidden
-                    }
-
-                    // scrolll up (?)
-                    KeyCode::Char('k') => {
-                        if self.scroll != 0 {
-                            self.scroll -= 1;
-                        }
-                    },
-                    KeyCode::Up => {
-                        if self.scroll != 0 {
-                            self.scroll -= 1;
-                        }
-                    },
-
-                    // scroll down 
-                    // scroll is limited at the bottom of the screen 
-                    KeyCode::Char('j') => {
-                        // -1 so that the last line is visible when scrolled all the way
-                        if self.scroll != self.length - 1 {
-                            self.scroll += 1;
-                        }
-                    },
-                    KeyCode::Down => {
-                        // -1 so that the last line is visible when scrolled all the way
-                        if self.scroll != self.length - 1 {
-                            self.scroll += 1;
-                        }
-                    },
-
-                    // leave the program here
-                    KeyCode::Esc => {
-                        return Ok(())
-                    },
-
-                    _ => ()
-                }
+            match event::read().map_err(Error::GenericIo)? {
+                Event::Key(key) => self.key_input(key.code),
+                Event::Mouse(mouse_event) => self.mouse_input(mouse_event.kind), 
+                _ => (),
             }
         }
+
+        Ok(())
     }
 }
 
