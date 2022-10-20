@@ -5,8 +5,15 @@ use std::{
 
 use tui::{
     widgets::Paragraph,
-    backend::{CrosstermBackend, Backend},
-    layout::{Constraint, Direction, Layout},
+    backend::{
+        CrosstermBackend, 
+        Backend
+    },
+    layout::{
+        Constraint, 
+        Direction, 
+        Layout
+    },
     Terminal
 };
 
@@ -32,6 +39,9 @@ use crossterm::{
 const MOUSE_SCROLL_AMOUNT: u16 = 5;
 const KEYBOARD_SCROLL_AMOUT: u16 = 1;
 
+const SPACE_CHANGE_AMOUT: u16 = 5;
+const DEFALUT_SPACE: u16 = 60;
+
 #[derive(Debug)]
 enum Error {
     OpenFile(std::io::Error),
@@ -54,6 +64,8 @@ struct Program {
     hidden: bool,
     // vertical sroll of the file
     scroll: u16,
+    // space between right and left side
+    space: u16,
     // amount of lines in the file
     length: u16,
     // this bool determines if program should be left
@@ -75,6 +87,7 @@ impl Program {
             right_side: String::new(),
             hidden: false,
             scroll: 0u16,
+            space: DEFALUT_SPACE,
             length: 0u16,
             leave:  false,
         };
@@ -131,7 +144,7 @@ impl Program {
 
     fn scroll_down(&mut self, amount: u16) { 
         if self.scroll + amount > self.length {
-            // -1 so that the last line is visible when scrolled all the way
+            // -1 so that the last line is visible when screen is scrolled all the way
             self.scroll = self.length - 1;
         } else {
             self.scroll += amount;
@@ -151,6 +164,14 @@ impl Program {
             // scroll is limited at the bottom of the screen 
             KeyCode::Char('j') => self.scroll_down(KEYBOARD_SCROLL_AMOUT),
             KeyCode::Down => self.scroll_down(KEYBOARD_SCROLL_AMOUT),
+
+            // change the space between the left and right side
+            KeyCode::Char('h') => self.space += SPACE_CHANGE_AMOUT,
+            KeyCode::Char('l') => self.space -= SPACE_CHANGE_AMOUT,
+
+            // change the space between the left and right side
+            KeyCode::Right => self.space += SPACE_CHANGE_AMOUT,
+            KeyCode::Left  => self.space -= SPACE_CHANGE_AMOUT,
 
             // leave the program here
             KeyCode::Esc => self.leave = true,
@@ -174,8 +195,8 @@ impl Program {
                 let chunks = Layout::default()
                     .direction(Direction::Horizontal)
                     .constraints([
-                                 Constraint::Percentage(40),
-                                 Constraint::Percentage(60),
+                                 Constraint::Percentage(self.space),
+                                 Constraint::Percentage(100 - self.space),
                     ])
                     .split(f.size());
 
