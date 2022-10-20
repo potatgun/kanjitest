@@ -6,7 +6,8 @@ use std::{
 use tui::{
     widgets::Paragraph,
     backend::{CrosstermBackend, Backend},
-    Terminal, layout::{Constraint, Direction, Layout}
+    layout::{Constraint, Direction, Layout},
+    Terminal
 };
 
 use crossterm::{
@@ -16,7 +17,8 @@ use crossterm::{
         DisableMouseCapture, 
         EnableMouseCapture, 
         Event,
-        KeyCode, MouseEventKind
+        KeyCode, 
+        MouseEventKind
     },
     terminal::{
         disable_raw_mode, 
@@ -32,9 +34,12 @@ const KEYBOARD_SCROLL_AMOUT: u16 = 1;
 
 #[derive(Debug)]
 enum Error {
-    CantOpenFile(std::io::Error),
-    CantReadFileContent(std::io::Error),
-    GenericIo(std::io::Error)
+    OpenFile(std::io::Error),
+    ReadFileContent(std::io::Error),
+    Draw(std::io::Error),
+    Event(std::io::Error),
+    Setup(std::io::Error),
+    Restore(std::io::Error),
 }
 
 type Result<T> = ::std::result::Result<T, Error>;
@@ -85,9 +90,9 @@ impl Program {
             .read(true)
             .write(false)
             .open(file)
-            .map_err(Error::CantOpenFile)?
+            .map_err(Error::OpenFile)?
             .read_to_string(&mut content)
-            .map_err(Error::CantReadFileContent)?;
+            .map_err(Error::ReadFileContent)?;
 
         // replace every uneeded line with an empty one for the left side
         let mut left_side = String::new();
@@ -133,7 +138,7 @@ impl Program {
         }
     }
 
-    fn key_input(&mut self, key: KeyCode) -> () { 
+    fn key_input(&mut self, key: KeyCode) { 
         match key {
             // toggle hidden
             KeyCode::Char(' ') => self.hidden = !self.hidden,
@@ -187,9 +192,9 @@ impl Program {
                         .scroll((self.scroll, 0));
                     f.render_widget(paragraph, chunks[1]);
                 }
-            }).map_err(Error::GenericIo)?;
+            }).map_err(Error::Draw)?;
 
-            match event::read().map_err(Error::GenericIo)? {
+            match event::read().map_err(Error::Event)? {
                 Event::Key(key) => self.key_input(key.code),
                 Event::Mouse(mouse_event) => self.mouse_input(mouse_event.kind), 
                 _ => (),
@@ -202,14 +207,14 @@ impl Program {
 
 macro_rules! restore_terminal {
     ($terminal: expr) => {{
-        disable_raw_mode().map_err(Error::GenericIo)?;
+        disable_raw_mode().map_err(Error::Restore)?;
         execute!(
             $terminal.backend_mut(),
             LeaveAlternateScreen,
             DisableMouseCapture
-            ).map_err(Error::GenericIo)?;
+        ).map_err(Error::Restore)?;
 
-        $terminal.show_cursor().map_err(Error::GenericIo)?;
+        $terminal.show_cursor().map_err(Error::Restore)?;
         Ok(())
     }}
 }
@@ -229,12 +234,16 @@ fn main() -> Result<()> {
         std::process::exit(0);
     }
 
-    enable_raw_mode().map_err(Error::GenericIo)?;
+    // setup terminal 
+    enable_raw_mode().map_err(Error::Setup)?;
     let mut stdout = std::io::stdout();
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture).map_err(Error::GenericIo)?;
+    execute!(stdout, 
+             EnterAlternateScreen, 
+             EnableMouseCapture
+    ).map_err(Error::Setup)?;
 
     let backend = CrosstermBackend::new(stdout);
-    let mut terminal = Terminal::new(backend).map_err(Error::GenericIo)?;
+    let mut terminal = Terminal::new(backend).map_err(Error::Setup)?;
 
     let path = &args[1];
     let program = match Program::new(path) {
