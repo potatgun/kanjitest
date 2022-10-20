@@ -27,6 +27,9 @@ use crossterm::{
 };
 
 
+const MOUSE_SCROLL_AMOUNT: u16 = 5;
+const KEYBOARD_SCROLL_AMOUT: u16 = 1;
+
 #[derive(Debug)]
 enum Error {
     CantOpenFile(std::io::Error),
@@ -46,7 +49,7 @@ struct Program {
     hidden: bool,
     // vertical sroll of the file
     scroll: u16,
-    // amout of lines in the file
+    // amount of lines in the file
     length: u16,
     // this bool determines if program should be left
     leave: bool,
@@ -113,34 +116,36 @@ impl Program {
         Ok(())
     }
 
-    fn scroll_up(&mut self) { 
-        if self.scroll != 0 {
-            self.scroll -= 1;
+    fn scroll_up(&mut self, amount: u16) { 
+        if self.scroll >= amount {
+            self.scroll -= amount;
+        } else {
+            self.scroll = 0;
         }
     }
 
-    fn scroll_down(&mut self) { 
-        // -1 so that the last line is visible when scrolled all the way
-        if self.scroll != self.length - 1 {
-            self.scroll += 1;
+    fn scroll_down(&mut self, amount: u16) { 
+        if self.scroll + amount > self.length {
+            // -1 so that the last line is visible when scrolled all the way
+            self.scroll = self.length - 1;
+        } else {
+            self.scroll += amount;
         }
     }
 
     fn key_input(&mut self, key: KeyCode) -> () { 
         match key {
             // toggle hidden
-            KeyCode::Char(' ') => {
-                self.hidden = !self.hidden
-            }
+            KeyCode::Char(' ') => self.hidden = !self.hidden,
 
             // scrolll up 
-            KeyCode::Char('k') => self.scroll_up(),
-            KeyCode::Up => self.scroll_up(),
+            KeyCode::Char('k') => self.scroll_up(KEYBOARD_SCROLL_AMOUT),
+            KeyCode::Up => self.scroll_up(KEYBOARD_SCROLL_AMOUT),
 
             // scroll down 
             // scroll is limited at the bottom of the screen 
-            KeyCode::Char('j') => self.scroll_down(),
-            KeyCode::Down => self.scroll_down(),
+            KeyCode::Char('j') => self.scroll_down(KEYBOARD_SCROLL_AMOUT),
+            KeyCode::Down => self.scroll_down(KEYBOARD_SCROLL_AMOUT),
 
             // leave the program here
             KeyCode::Esc => self.leave = true,
@@ -151,8 +156,8 @@ impl Program {
 
     fn mouse_input(&mut self, event: MouseEventKind) { 
         match event {
-            MouseEventKind::ScrollUp => self.scroll_up(),    
-            MouseEventKind::ScrollDown => self.scroll_down(),
+            MouseEventKind::ScrollUp => self.scroll_up(MOUSE_SCROLL_AMOUNT),    
+            MouseEventKind::ScrollDown => self.scroll_down(MOUSE_SCROLL_AMOUNT),
             _ => ()
         }
     }
