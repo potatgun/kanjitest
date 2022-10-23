@@ -204,14 +204,14 @@ impl Program {
         //
         // render left side
         let paragraph = 
-            Paragraph::new(&*self.left_side)
+            Paragraph::new(self.left_side.as_str())
             .scroll((self.scroll, 0));
         frame.render_widget(paragraph, chunks[0]);
 
         // render right side if it is not hidden
         if !self.hidden {
             let paragraph = 
-                Paragraph::new(&*self.right_side)
+                Paragraph::new(self.right_side.as_str())
                 .scroll((self.scroll, 0));
             frame.render_widget(paragraph, chunks[1]);
         }
