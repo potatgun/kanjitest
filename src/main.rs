@@ -14,7 +14,7 @@ use tui::{
         Direction, 
         Layout
     },
-    Terminal
+    Terminal, Frame
 };
 
 use crossterm::{
@@ -40,7 +40,7 @@ const MOUSE_SCROLL_AMOUNT: u16 = 5;
 const KEYBOARD_SCROLL_AMOUT: u16 = 1;
 
 const SPACE_CHANGE_AMOUT: u16 = 5;
-const DEFALUT_SPACE: u16 = 60;
+const DEFALUT_SPACE: u16 = 40;
 
 #[derive(Debug)]
 enum Error {
@@ -188,32 +188,39 @@ impl Program {
         }
     }
 
+    fn draw<B: Backend>(&self, frame: &mut Frame<B>) { 
+        // split screen into two parts
+        let chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                         Constraint::Percentage(self.space),
+                         Constraint::Percentage(100 - self.space),
+            ])
+            .split(frame.size());
+
+        // TODO: redo the rendering
+        // as of right now it will render whole string at all times 
+        // which will cause tons of lag in big files
+        //
+        // render left side
+        let paragraph = 
+            Paragraph::new(&*self.left_side)
+            .scroll((self.scroll, 0));
+        frame.render_widget(paragraph, chunks[0]);
+
+        // render right side if it is not hidden
+        if !self.hidden {
+            let paragraph = 
+                Paragraph::new(&*self.right_side)
+                .scroll((self.scroll, 0));
+            frame.render_widget(paragraph, chunks[1]);
+        }
+
+    }
+
     fn run<B: Backend>(mut self, terminal: &mut Terminal<B>) -> Result<()> { 
         while !self.leave {
-            terminal.draw(|f| {
-                // split screen into two parts
-                let chunks = Layout::default()
-                    .direction(Direction::Horizontal)
-                    .constraints([
-                                 Constraint::Percentage(self.space),
-                                 Constraint::Percentage(100 - self.space),
-                    ])
-                    .split(f.size());
-
-                // render left side
-                let paragraph = 
-                    Paragraph::new(self.left_side.clone())
-                    .scroll((self.scroll, 0));
-                f.render_widget(paragraph, chunks[0]);
-
-                // render right side if it is not hidden
-                if !self.hidden {
-                    let paragraph = 
-                        Paragraph::new(self.right_side.clone())
-                        .scroll((self.scroll, 0));
-                    f.render_widget(paragraph, chunks[1]);
-                }
-            }).map_err(Error::Draw)?;
+            terminal.draw(|frame| self.draw(frame)).map_err(Error::Draw)?;
 
             match event::read().map_err(Error::Event)? {
                 Event::Key(key) => self.key_input(key.code),
