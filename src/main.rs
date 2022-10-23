@@ -36,11 +36,26 @@ use crossterm::{
 };
 
 
-const MOUSE_SCROLL_AMOUNT: u16 = 5;
-const KEYBOARD_SCROLL_AMOUT: u16 = 1;
+
+// `KeyCode` is crosstrem::event::KeyCode
+// scroll down
+const DOWN_KEY: KeyCode = KeyCode::Char('j');
+// scroll up
+const UP_KEY:   KeyCode = KeyCode::Char('k');
+// hide right side
+const HIDE_KEY: KeyCode = KeyCode::Char(' ');
+// exit program
+const EXIT_KEY: KeyCode = KeyCode::Esc;
+// increase space between right and left side
+const INCREASE_SPACE_KEY: KeyCode = KeyCode::Char('h'); 
+// decrease space between right and left side
+const DECREASE_SPACE_KEY: KeyCode = KeyCode::Char('l'); 
 
 const SPACE_CHANGE_AMOUT: u16 = 5;
 const DEFALUT_SPACE: u16 = 40;
+
+const MOUSE_SCROLL_AMOUNT: u16 = 5;
+const KEYBOARD_SCROLL_AMOUT: u16 = 1;
 
 #[derive(Debug)]
 enum Error {
@@ -154,27 +169,27 @@ impl Program {
     fn key_input(&mut self, key: KeyCode) { 
         match key {
             // toggle hidden
-            KeyCode::Char(' ') => self.hidden = !self.hidden,
+            HIDE_KEY => self.hidden = !self.hidden,
 
             // scrolll up 
-            KeyCode::Char('k') => self.scroll_up(KEYBOARD_SCROLL_AMOUT),
+            UP_KEY => self.scroll_up(KEYBOARD_SCROLL_AMOUT),
             KeyCode::Up => self.scroll_up(KEYBOARD_SCROLL_AMOUT),
 
             // scroll down 
             // scroll is limited at the bottom of the screen 
-            KeyCode::Char('j') => self.scroll_down(KEYBOARD_SCROLL_AMOUT),
+            DOWN_KEY => self.scroll_down(KEYBOARD_SCROLL_AMOUT),
             KeyCode::Down => self.scroll_down(KEYBOARD_SCROLL_AMOUT),
 
-            // change the space between the left and right side
-            KeyCode::Char('h') => self.space += SPACE_CHANGE_AMOUT,
-            KeyCode::Char('l') => self.space -= SPACE_CHANGE_AMOUT,
-
-            // change the space between the left and right side
+            // decrease space between the left and right side
+            DECREASE_SPACE_KEY => self.space += SPACE_CHANGE_AMOUT,
             KeyCode::Right => self.space += SPACE_CHANGE_AMOUT,
+
+            // increase space between the left and right side
+            INCREASE_SPACE_KEY => self.space -= SPACE_CHANGE_AMOUT,
             KeyCode::Left  => self.space -= SPACE_CHANGE_AMOUT,
 
             // leave the program here
-            KeyCode::Esc => self.leave = true,
+            EXIT_KEY => self.leave = true,
 
             _ => ()
         }
