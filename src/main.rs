@@ -38,6 +38,7 @@ use crossterm::{
 
 
 // `KeyCode` is crosstrem::event::KeyCode
+// https://docs.rs/crossterm/latest/crossterm/event/index.html
 // scroll down
 const DOWN_KEY: KeyCode = KeyCode::Char('j');
 // scroll up
