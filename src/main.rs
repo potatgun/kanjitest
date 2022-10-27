@@ -43,8 +43,10 @@ use crossterm::{
 const DOWN_KEY: KeyCode = KeyCode::Char('j');
 // scroll up
 const UP_KEY:   KeyCode = KeyCode::Char('k');
-// hide right side
+// hide left or right side
 const HIDE_KEY: KeyCode = KeyCode::Char(' ');
+// change which side is hidden
+const REVERSE_KEY: KeyCode = KeyCode::Char('r');
 // exit program
 const EXIT_KEY: KeyCode = KeyCode::Esc;
 // increase space between right and left side
@@ -194,7 +196,7 @@ impl Program {
             INCREASE_SPACE_KEY => self.space -= SPACE_CHANGE_AMOUT,
             KeyCode::Left  => self.space -= SPACE_CHANGE_AMOUT,
 
-            KeyCode::Char('r') => self.reverse = !self.reverse,
+            REVERSE_KEY => self.reverse = !self.reverse,
 
             // leave the program here
             EXIT_KEY => self.leave = true,
