@@ -72,19 +72,23 @@ type Result<T> = ::std::result::Result<T, Error>;
 
 struct Program { 
     // left side will have kanji on it
+    // left or right side can be hidden
     left_side: String,
     // right side will have meaning and reading on it
-    // it can be hidden with spacebar
+    // left or right side can be hidden
     right_side: String,
-    // this bool determines if right side is supposed to be hidden
+    // if side is supposed to be hidden
     hidden: bool,
+    // which side is supposed to be hidden
+    // TODO: name is bad i think
+    reverse: bool,
     // vertical sroll of the file
     scroll: u16,
     // space between right and left side
     space: u16,
     // amount of lines in the file
     length: u16,
-    // this bool determines if program should be left
+    // if program should be left
     leave: bool,
 }
 
@@ -102,6 +106,7 @@ impl Program {
             left_side: String::new(),
             right_side: String::new(),
             hidden: false,
+            reverse: false,
             scroll: 0u16,
             space: DEFALUT_SPACE,
             length: 0u16,
@@ -189,6 +194,8 @@ impl Program {
             INCREASE_SPACE_KEY => self.space -= SPACE_CHANGE_AMOUT,
             KeyCode::Left  => self.space -= SPACE_CHANGE_AMOUT,
 
+            KeyCode::Char('r') => self.reverse = !self.reverse,
+
             // leave the program here
             EXIT_KEY => self.leave = true,
 
@@ -218,14 +225,16 @@ impl Program {
         // as of right now it will render whole string at all times 
         // which will cause tons of lag in big files
         //
-        // render left side
-        let paragraph = 
-            Paragraph::new(self.left_side.as_str())
-            .scroll((self.scroll, 0));
-        frame.render_widget(paragraph, chunks[0]);
+        // render left side if it is not hidden
+        if !self.reverse || !self.hidden {
+            let paragraph =  
+                Paragraph::new(self.left_side.as_str())
+                .scroll((self.scroll, 0));
+            frame.render_widget(paragraph, chunks[0]);
+        }
 
         // render right side if it is not hidden
-        if !self.hidden {
+        if self.reverse || !self.hidden {
             let paragraph = 
                 Paragraph::new(self.right_side.as_str())
                 .scroll((self.scroll, 0));
